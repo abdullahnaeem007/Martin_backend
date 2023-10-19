@@ -6,6 +6,7 @@ const {RecursiveCharacterTextSplitter} = require('langchain/text_splitter')
 const {createClient} = require('@supabase/supabase-js')
 const OpenAI = require('openai')
 const {config} = require('dotenv')
+const { ReadableStream } = require('web-streams-polyfill');
 
 config()
 
