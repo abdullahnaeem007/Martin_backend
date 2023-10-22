@@ -7,6 +7,7 @@ const {createClient} = require('@supabase/supabase-js')
 const OpenAI = require('openai')
 const {config} = require('dotenv')
 const { ReadableStream } = require('web-streams-polyfill');
+const { time } = require('console')
 
 config()
 
@@ -35,6 +36,9 @@ const OpenaiKey=process.env.OPENAI_API_KEY
 const url=process.env.SUPABASE_URL
 const key=process.env.SUPABASE_KEY
 const supabase=createClient(url,key)
+
+let timer=0
+let size=0
 
 app.post('/InputResponse',async (req,res)=>{
     try{
@@ -79,19 +83,20 @@ app.post('/pdfParser',async (req,res)=>{
     try{
         const pdfdata=req.body
         const pdfText = await parsePDFText(pdfdata)
-        console.log(pdfText)
 
         const text_splitter=new RecursiveCharacterTextSplitter({
             chunkSize:1000,
             chunkOverlap:200
         })
         const chunkedDoc=await text_splitter.splitText(pdfText)
-        
+        size=chunkedDoc.length
         for(var i=0;i<chunkedDoc.length;i++)
         {
-            console.log(chunkedDoc[i])
+            timer++
             await GenerateAndStore(chunkedDoc[i])
         }
+        timer=0
+        size=0
         res.status(200).json({status:'success'})
     }
     catch(error)
@@ -109,18 +114,20 @@ app.post('/docxParser',async (req,res)=>{
         {
             doctext=doctext+fileText[i]
         }
-        console.log(doctext)
         const text_splitter=new RecursiveCharacterTextSplitter({
             chunkSize:1000,
             chunkOverlap:200
         })
         const chunkedDoc=await text_splitter.splitText(doctext)
-        
+        size=chunkedDoc.length
         for(var i=0;i<chunkedDoc.length;i++)
         {
-            console.log(chunkedDoc[i])
+            timer++
             await GenerateAndStore(chunkedDoc[i])
         }
+        timer=0
+        size=0
+
         res.status(200).json({status:'success'})
     }
     catch(error)
@@ -138,12 +145,14 @@ app.post('/txtParser',async (req,res)=>{
             chunkOverlap:200
         })
         const chunkedDoc=await text_splitter.splitText(fileText)
-        
+        size=chunkedDoc.length
         for(var i=0;i<chunkedDoc.length;i++)
         {
-            console.log(chunkedDoc[i])
+            timer++
             await GenerateAndStore(chunkedDoc[i])
         }
+        timer=0
+        size=0
         res.status(200).json({status:'success'})
     }
     catch(error)
@@ -182,6 +191,11 @@ async function parsePDFText(pdfData) {
         throw error;
     }
 }
+
+app.get('/GetTime',async (req,res)=>{
+    console.log('time: '+ timer +' , '+'size: '+size)    
+    res.status(200).json({timer:timer,size:size}) 
+})
 
 app.post('/chat',async (req,res)=>{
     const {chatarr}= req.body
@@ -222,6 +236,39 @@ app.post('/saveHistory',async (req,res)=>{
 
     res.status(200).json({text:'success'})
 })
+
+app.post('/saveDocumentDetails',async (req,res)=>{
+    const Item=req.body.item
+    const name=Item.name
+    const SIZE=Item.size
+    const type=Item.type
+
+    console.log(Item)
+
+    const {data,error} = await supabase
+    .from('UploadedDocs')
+    .insert({
+        name:name,
+        type:type,
+        size:SIZE
+    })
+
+    if(error)
+    {
+        res.status(500).json({text:'error'})
+    }
+
+    res.status(200).json({text:'success'})
+})
+
+app.get('/getDocumentDetails',async (req,res)=>{
+    const {data,error} = await supabase
+    .from('UploadedDocs')
+    .select('*')
+
+    res.status(200).json({text:data})
+})
+
 
 app.listen(PORT,()=>{
     console.log("App is listening on port 3001")
