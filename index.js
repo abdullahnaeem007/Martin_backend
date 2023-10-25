@@ -78,22 +78,29 @@ async function GenerateResponseEmbeddings(content){
     return data
 }
 
+app.post('/GetPDFText',async (req,res)=>{
+    const pdfdata=req.body
+    const pdfText = await parsePDFText(pdfdata)
+
+    res.status(200).json({text:pdfText})
+})
+
 
 app.post('/pdfParser',async (req,res)=>{
     try{
-        const pdfdata=req.body
-        const pdfText = await parsePDFText(pdfdata)
+        const fileText=req.body.fileText
+        const name=req.body.name
 
         const text_splitter=new RecursiveCharacterTextSplitter({
             chunkSize:1000,
             chunkOverlap:200
         })
-        const chunkedDoc=await text_splitter.splitText(pdfText)
+        const chunkedDoc=await text_splitter.splitText(fileText)
         size=chunkedDoc.length
         for(var i=0;i<chunkedDoc.length;i++)
         {
             timer++
-            await GenerateAndStore(chunkedDoc[i])
+            await GenerateAndStore(chunkedDoc[i],name)
         }
         timer=0
         size=0
@@ -109,6 +116,8 @@ app.post('/pdfParser',async (req,res)=>{
 app.post('/docxParser',async (req,res)=>{
     try{
         const fileText=req.body.fileText
+        const name=req.body.name
+        
         var doctext=''
         for (var i=0;i<fileText.length;i++)
         {
@@ -123,7 +132,7 @@ app.post('/docxParser',async (req,res)=>{
         for(var i=0;i<chunkedDoc.length;i++)
         {
             timer++
-            await GenerateAndStore(chunkedDoc[i])
+            await GenerateAndStore(chunkedDoc[i],name)
         }
         timer=0
         size=0
@@ -140,6 +149,7 @@ app.post('/docxParser',async (req,res)=>{
 app.post('/txtParser',async (req,res)=>{
     try{
         const fileText=req.body.fileText
+        const name=req.body.name
         const text_splitter=new RecursiveCharacterTextSplitter({
             chunkSize:1000,
             chunkOverlap:200
@@ -149,7 +159,7 @@ app.post('/txtParser',async (req,res)=>{
         for(var i=0;i<chunkedDoc.length;i++)
         {
             timer++
-            await GenerateAndStore(chunkedDoc[i])
+            await GenerateAndStore(chunkedDoc[i],name)
         }
         timer=0
         size=0
@@ -162,7 +172,7 @@ app.post('/txtParser',async (req,res)=>{
     }
 })
 
-async function GenerateAndStore(content){
+async function GenerateAndStore(content,name){
     const response = await fetch('https://api.openai.com/v1/embeddings',{
         method:'POST',
         headers:{
@@ -178,8 +188,9 @@ async function GenerateAndStore(content){
     const embedding = res.data[0].embedding
     
     await supabase.from('documents').insert({
-        content,
-        embedding
+        content:content,
+        embedding:embedding,
+        DocName:name
     })
 }
 
@@ -267,6 +278,39 @@ app.get('/getDocumentDetails',async (req,res)=>{
     .select('*')
 
     res.status(200).json({text:data})
+})
+
+app.post('/DeleteDocument',async(req,res)=>{
+    const name=req.body.name
+
+    const {data,error} = await supabase
+    .from('documents')
+    .delete()
+    .eq('DocName',name)
+
+    const {data2,error2} = await supabase
+    .from('UploadedDocs')
+    .delete()
+    .eq('name',name)
+
+    res.status(200).json({text:data,text2:data2})
+})
+
+app.post('/EditDocument',async(req,res)=>{
+    const OldName=req.body.OldName
+    const NewName=req.body.NewName
+
+    const { data, error } = await supabase
+    .from('documents')
+    .update({ DocName: NewName })
+    .eq('DocName', OldName);
+
+    const { data2, error2 } = await supabase
+    .from('UploadedDocs')
+    .update({ name: NewName })
+    .eq('name', OldName);
+
+    res.status(200).json({text:data,text2:data2})
 })
 
 
