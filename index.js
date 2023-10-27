@@ -37,8 +37,6 @@ const url=process.env.SUPABASE_URL
 const key=process.env.SUPABASE_KEY
 const supabase=createClient(url,key)
 
-let timer=0
-let size=0
 
 app.post('/InputResponse',async (req,res)=>{
     try{
@@ -91,20 +89,24 @@ app.post('/pdfParser',async (req,res)=>{
         const fileText=req.body.fileText
         const name=req.body.name
 
+        let current_percentage=0
+
         const text_splitter=new RecursiveCharacterTextSplitter({
             chunkSize:1000,
             chunkOverlap:200
         })
         const chunkedDoc=await text_splitter.splitText(fileText)
-        size=chunkedDoc.length
+        let total_percentage=chunkedDoc.length
         for(var i=0;i<chunkedDoc.length;i++)
         {
-            timer++
+            current_percentage++
             await GenerateAndStore(chunkedDoc[i],name)
+            let percent=(current_percentage/total_percentage)*100
+            percent=Math.trunc(percent)
+            console.log(percent)
+            res.write(percent.toString())
         }
-        timer=0
-        size=0
-        res.status(200).json({status:'success'})
+        res.end()
     }
     catch(error)
     {
@@ -117,6 +119,8 @@ app.post('/docxParser',async (req,res)=>{
     try{
         const fileText=req.body.fileText
         const name=req.body.name
+
+        let current_percentage=0
         
         var doctext=''
         for (var i=0;i<fileText.length;i++)
@@ -128,16 +132,17 @@ app.post('/docxParser',async (req,res)=>{
             chunkOverlap:200
         })
         const chunkedDoc=await text_splitter.splitText(doctext)
-        size=chunkedDoc.length
+        let total_percentage=chunkedDoc.length
         for(var i=0;i<chunkedDoc.length;i++)
         {
-            timer++
+            current_percentage++
             await GenerateAndStore(chunkedDoc[i],name)
+            let percent=(current_percentage/total_percentage)*100
+            percent=Math.trunc(percent)
+            console.log(percent)
+            res.write(percent.toString())
         }
-        timer=0
-        size=0
-
-        res.status(200).json({status:'success'})
+        res.end()
     }
     catch(error)
     {
@@ -150,20 +155,25 @@ app.post('/txtParser',async (req,res)=>{
     try{
         const fileText=req.body.fileText
         const name=req.body.name
+
+        let current_percentage=0
+
         const text_splitter=new RecursiveCharacterTextSplitter({
             chunkSize:1000,
             chunkOverlap:200
         })
         const chunkedDoc=await text_splitter.splitText(fileText)
-        size=chunkedDoc.length
+        let total_percentage=chunkedDoc.length
         for(var i=0;i<chunkedDoc.length;i++)
         {
-            timer++
+            current_percentage++
             await GenerateAndStore(chunkedDoc[i],name)
+            let percent=(current_percentage/total_percentage)*100
+            percent=Math.trunc(percent)
+            console.log(percent)
+            res.write(percent.toString())
         }
-        timer=0
-        size=0
-        res.status(200).json({status:'success'})
+        res.end()
     }
     catch(error)
     {
@@ -203,10 +213,6 @@ async function parsePDFText(pdfData) {
     }
 }
 
-app.get('/GetTime',async (req,res)=>{
-    console.log('time: '+ timer +' , '+'size: '+size)    
-    res.status(200).json({timer:timer,size:size}) 
-})
 
 app.post('/chat',async (req,res)=>{
     const {chatarr}= req.body
