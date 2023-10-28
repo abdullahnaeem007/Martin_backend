@@ -319,6 +319,22 @@ app.post('/EditDocument',async(req,res)=>{
     res.status(200).json({text:data,text2:data2})
 })
 
+app.post('/DeleteContent',async (req,res)=>{
+    const CurrentID = req.body.CurrentID
+
+    const {data,error} = await supabase
+    .from('History')
+    .delete()
+    .eq('id',CurrentID)
+
+    if(error)
+    {
+        res.status(200).json({text:'error'})
+    }
+
+    res.status(200).json({text:'success'})
+})
+
 
 app.listen(PORT,()=>{
     console.log("App is listening on port 3001")
